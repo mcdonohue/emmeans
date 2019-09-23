@@ -1,5 +1,5 @@
 ##############################################################################
-#    Copyright (c) 2012-2017 Russell V. Lenth                                #
+#    Copyright (c) 2012-2019 Russell V. Lenth                                #
 #                                                                            #
 #    This file is part of the emmeans package for R (*emmeans*)              #
 #                                                                            #
@@ -240,3 +240,39 @@ model.frame = function(formula, data, ...) {
     }
     data[, nm, drop = FALSE]
 }
+
+# format sigma for use in  messages
+.fmt.sigma = function(sigma) {
+    if (length(sigma) == 1)
+        round(sigma, 4 - floor(log10(sigma)))
+    else
+        "(various values)"
+}
+
+# format a transformation for messages
+.fmt.tran = function(misc) {
+    tran = misc$tran
+    if (is.list(tran)) 
+        tran = ifelse(is.null(tran$name), "custom", tran$name)
+    if (!is.null(mul <- misc$tran.mult))
+        tran = paste0(mul, "*", tran)
+    if(!is.null(off <- misc$tran.offset))
+        tran = paste0(tran, "(mu + ", off, ")")
+    tran
+}
+
+
+# My own utility for requiring a namespace and handling case where it is not available
+#   pkg      package name
+#   ...      passed to fail
+#   fail     function to call if namespace not found
+#   quietly passed to requireNamespace()
+## I can't decide definitively if I want to suppress S3 masking messages or not...
+.requireNS = function(pkg, ..., fail = stop, quietly = TRUE) {
+    ### result = suppressMessages(requireNamespace(pkg, quietly = quietly))
+    result = requireNamespace(pkg, quietly = TRUE)
+    if (!result) fail(...)
+    result
+}
+# of possible use as fail in .requireNS
+.nothing = function(...) invisible()

@@ -37,7 +37,7 @@
 #' functions of the regression coefficients for a given grid of predictor
 #' values. These tasks are performed by calls to \code{recover_data} and
 #' \code{emm_basis} respectively. A vignette giving details and examples
-#' is available via \href{../doc/extending.pdf}{vignette("extending", "emmeans")}
+#' is available via \href{../doc/xtending.html}{vignette("xtending", "emmeans")}
 #' 
 #' To extend \pkg{emmeans}'s support to additional model types, one need only
 #' write S3 methods for these two functions. The existing methods serve as
@@ -84,12 +84,32 @@
 #'    In those cases, users should be careful to provide the actual data
 #'    used to fit the model in the \code{data} argument.
 #'   
-#' @seealso \href{../doc/extending.pdf}{Vignette on extending emmeans}
+#' @seealso \href{../doc/xtending.html}{Vignette on extending emmeans}
 #' 
 #' @export
 recover_data = function(object, ...) {
+    # look for outside methods first
+    for (cl in .chk.cls(object)) {
+        rd <- try(getS3method("recover_data", cl, envir = .GlobalEnv), silent = TRUE)
+        if(!inherits(rd, "try-error"))
+            return(rd(object, ...))
+    }
     UseMethod("recover_data")
 }
+
+# get classes that are OK for external code to modify
+# We don't allow overriding certain anchor classes, 
+# nor ones in 3rd place or later in inheritance
+.chk.cls = function(object) {
+    sacred = c("call", "lm", "glm", "mlm", "aovlist", "lme", "qdrg")
+    setdiff(class(object)[1:2], sacred)
+}
+
+
+
+
+
+
 
 #--------------------------------------------------------------
 ### call' objects
@@ -109,12 +129,15 @@ recover_data = function(object, ...) {
 #'   predictors used in the model, and any factor levels must match those used
 #'   in fitting the model.
 #' @param params Character vector giving the names of any variables in the model
-#'   formula that are \emph{not} predictors. An example would be a variable
-#'   \code{knots} specifying the knots to use in a spline model.
+#'   formula that are \emph{not} predictors. For example, a spline model may involve
+#'   a local variable \code{knots} that is not a predictor, but its value is
+#'   needed to fit the model. Names of parameters not actually used are harmless,
+#'   and the default value \code{"pi"} (the only numeric constant in base R)
+#'   is provided in case the model involves it.
 #' 
 #' @method recover_data call
 #' @export
-recover_data.call = function(object, trms, na.action, data = NULL, params = NULL, ...) {
+recover_data.call = function(object, trms, na.action, data = NULL, params = "pi", ...) {
     fcall = object # because I'm easily confused
     vars = setdiff(.all.vars(trms), params)
     tbl = data
@@ -157,7 +180,9 @@ recover_data.call = function(object, trms, na.action, data = NULL, params = NULL
         env = environment(trms)
         if (is.null(env)) 
             env = parent.frame()
-        tbl = eval(fcall, env, parent.frame())
+        tbl = try(eval(fcall, env, parent.frame()), silent = TRUE)
+        if(inherits(tbl, "try-error"))
+            return(.rd.error(vars, fcall))
         if (possibly.random) {
             chk = eval(fcall, env, parent.frame())
             if (!all(chk == tbl))
@@ -184,7 +209,25 @@ recover_data.call = function(object, trms, na.action, data = NULL, params = NULL
     tbl
 }
 
-
+# error message for recover_data.call
+.rd.error = function(vars, fcall) {
+    if ("pi" %in% vars) 
+        return("\nTry re-running with 'params = c\"pi\", ...)'")
+    if (is.list(fcall$data)) fcall$data = "(raw data structure)"
+    dataname = as.character(fcall$data)[1]
+    if ((!is.na(dataname)) && (nchar(dataname) > 50))
+        dataname = paste(substring(dataname, 1, 50), "...")
+    mesg = "We are unable to reconstruct the data.\n"
+    mesg = paste0(mesg, "The variables needed are:\n\t",
+           paste(vars, collapse = " "), "\n",
+           "Are any of these actually constants? (specify via 'params = ')\n")
+    if (is.na(dataname))
+        mesg = paste(mesg, "Try re-running with 'data = \"<name of dataset>\"'\n")
+    else 
+        mesg = paste0(mesg, "The dataset name is:\n\t", dataname, "\n",
+           "Does the data still exist? Or you can specify a dataset via 'data = '\n")
+    mesg
+}
 
 #----------------------------------------------------------
 ### emm_basis methods create a basis for the reference grid
@@ -235,6 +278,12 @@ recover_data.call = function(object, trms, na.action, data = NULL, params = NULL
 #' } %%% end of describe
 #' @export
 #' 
+#' @section Communication between methods:
+#' If the \code{recover_data} method generates information needed by \code{emm_basis},
+#' that information may be incorporated by creating a \code{"misc"} attribute in the
+#' returned recovered data. That information is then passed as the \code{misc} 
+#' argument when \code{ref_grid} calls \code{emm_basis}.
+#' 
 #' @section Optional hooks:
 #' Some models may need something other than standard linear estimates and
 #' standard errors. If so, custom functions may be pointed to via the items
@@ -255,6 +304,12 @@ recover_data.call = function(object, trms, na.action, data = NULL, params = NULL
 #' \code{ref_grid}; it takes one argument, the constructed \code{object}, and
 #' should return a suitably modified \code{emmGrid} object.
 emm_basis = function(object, trms, xlev, grid, ...) {
+    # look for outside methods first
+    for (cl in .chk.cls(object)) {
+        emb <- try(getS3method("emm_basis", cl, envir = .GlobalEnv), silent = TRUE)
+        if(!inherits(emb, "try-error"))
+            return(emb(object, trms, xlev, grid, ...))
+    }
     UseMethod("emm_basis")
 }
 

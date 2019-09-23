@@ -50,6 +50,10 @@ response transformation \samp{2*sqrt(y)} (or \samp{sqrt(y) + sqrt(y + 1)},
 for that matter), we should have \code{tran = "sqrt"} and \code{tran.mult =
 2}. If absent, a multiple of 1 is assumed.}
 
+\item{\code{tran.offset}}{Additive constant before a transformation is applied.
+For example, a response transformation of \code{log(y + pi)} has
+\code{tran.offset  = pi}. If no value is present, an offset of 0 is assumed.}
+
 \item{\code{estName}}{(\code{character}) is the column label used for
 displaying predictions or EMMs.}
 
@@ -66,7 +70,7 @@ levels are used as columns in each table produced by \code{\link{summary.emmGrid
 
 \item{\code{alpha}}{(numeric) is the default significance level for tests, in
 \code{\link{summary.emmGrid}} as well as \code{\link{plot.emmGrid}}
-when \samp{intervals = TRUE}. Be cautious that methods that depend on
+when \samp{CIs = TRUE}. Be cautious that methods that depend on
 specifying \code{alpha} are prone to abuse. See the
 discussion in \href{../doc/basics.html#pvalues}{\code{vignette("basics", "emmeans")}}.}
 
@@ -79,7 +83,7 @@ along with \code{"adjust"} to determine appropriate adjustments to P values
 and confidence intervals.}
 
 \item{\code{famSize}}{(integer) is the number of means involved in a family of
-inferences; used in Tukey and Scheffe adjustments}
+inferences; used in Tukey adjustment}
 
 \item{\code{infer}}{(\code{logical} vector of length 2) is the default value
 of \code{infer} in \code{\link{summary.emmGrid}}.}
@@ -96,6 +100,9 @@ specified single value.}
 
 \item{\code{side}}{(numeric or character) \code{side} specification for for
 \code{summary} or \code{test} (taken to be zero if missing).}
+
+\item{\code{sigma}}{(numeric) Error SD to use in predictions and for bias-adjusted
+back-transformations}
 
 \item{\code{delta}}{(numeric) \code{delta} specification for \code{summary}
 or \code{test} (taken to be zero if missing).}
