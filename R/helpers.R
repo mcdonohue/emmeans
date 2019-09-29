@@ -236,9 +236,23 @@ recover_data.lme = function(object, data, ...) {
 
 #' @export
 emm_basis.lme = function(object, trms, xlev, grid, 
-        mode = c("containment", "satterthwaite", "boot-satterthwaite", "auto"), 
+        mode = get_emm_option("lme.df"),
         sigmaAdjust = TRUE, options, ...) {
-    mode = match.arg(mode)
+    mode = match.arg(tolower(mode), c("kenward-roger", "auto", "df.error", "satterthwaite", "boot-satterthwaite"))
+    # set flags
+    objN = object$dims$N
+    disable.pbkrtest = get_emm_option("disable.pbkrtest")
+    tooBig.k = (objN > get_emm_option("pbkrtest.limit"))
+    disable.lmerTest = get_emm_option("disable.lmerTest")
+    tooBig.s = (objN > get_emm_option("lmerTest.limit"))
+    
+    tooBigMsg = function(pkg, limit) {  
+        message("Note: D.f. calculations have been",
+            " disabled because the number of observations exceeds ", limit, ".\n",
+            "To enable adjustments, set emm_options(", pkg, ".limit = ", objN, ") or larger,\n",
+            "but be warned that this may result in large computation time and memory use.")
+    }
+    
     if (!is.null(options$df)) # if we're gonna override the df anyway, keep it simple!
         mode = "fixed"
     if (mode == "auto")
@@ -261,6 +275,25 @@ emm_basis.lme = function(object, trms, xlev, grid,
     if (mode == "fixed") { # hack to just put in df from options
         dfargs = list(df = options$df)
         dffun = function(k, dfargs) dfargs$df
+    }
+    if (mode == "kenward-roger") {
+        if (disable.pbkrtest || tooBig.k || !requireNamespace("pbkrtest", quietly = TRUE))
+            mode = "satterthwaite"
+        if (!disable.pbkrtest && tooBig.k)
+            tooBigMsg("pbkrtest", get_emm_option("pbkrtest.limit"))
+    }
+    if (mode == "kenward-roger") {
+        dfargs = list(unadjV = V, 
+            adjV = pbkrtest::vcovAdj.lme(object, 0))
+        V = as.matrix(dfargs$adjV)
+        tst = try(pbkrtest::Lb_ddf)
+        if(class(tst) != "try-error")
+            dffun = function(k, dfargs) pbkrtest::Lb_ddf (k, dfargs$unadjV, dfargs$adjV)
+        else {
+            mode = "auto"
+            warning("Failure in loading pbkrtest routines",
+                " - reverted to \"auto\"")
+        }
     }
     else if (mode %in% c("satterthwaite", "boot-satterthwaite")) {
         G = try(gradV.kludge(object), silent = TRUE)

@@ -489,6 +489,7 @@ emm_defaults = list (
     back.bias.adj = FALSE,    # Try to bias-adjust back-transformations?
     opt.digits = TRUE,        # optimize displayed digits?
     lmer.df = "kenward-roger",  # Use Kenward-Roger for df
+    lme.df = "kenward-roger",  # Use Kenward-Roger for df
     gls.df = "kenward-roger",  # Use Kenward-Roger for df
     disable.pbkrtest = FALSE, # whether to bypass pbkrtest routines for lmerMod
     pbkrtest.limit = 3000,    # limit on N for enabling K-R
