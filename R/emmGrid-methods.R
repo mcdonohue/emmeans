@@ -408,6 +408,7 @@ update.emmGrid = function(object, ..., silent = FALSE) {
 #' \item{\code{save.ref_grid}}{Logical value of \code{TRUE} if you wish the 
 #' latest reference grid created to be saved in \code{.Last.ref_grid}}
 #' \item{Options for \code{lme4::lmerMod} models}{Options \code{lmer.df},
+#' \code{nlme::gls} models}{Options \code{gls.df},
 #' \code{disable.pbkrtest}, \code{pbkrtest.limit}, \code{disable.lmerTest},
 #' and \code{lmerTest.limit}
 #' options affect how degrees of freedom are computed for \code{lmerMod} objects
@@ -488,6 +489,7 @@ emm_defaults = list (
     back.bias.adj = FALSE,    # Try to bias-adjust back-transformations?
     opt.digits = TRUE,        # optimize displayed digits?
     lmer.df = "kenward-roger",  # Use Kenward-Roger for df
+    gls.df = "kenward-roger",  # Use Kenward-Roger for df
     disable.pbkrtest = FALSE, # whether to bypass pbkrtest routines for lmerMod
     pbkrtest.limit = 3000,    # limit on N for enabling K-R
     disable.lmerTest = FALSE, # whether to bypass lmerTest routines for lmerMod

@@ -374,7 +374,8 @@ recover_data.gls = function(object, ...) {
 }
 
 emm_basis.gls = function(object, trms, xlev, grid, 
-                         mode = c("auto", "df.error", "satterthwaite", "boot-satterthwaite"), 
+                         mode = get_emm_option("gls.df"), 
+                         gls.df, vcov.,
                          options, ...) {
     contrasts = object$contrasts
     m = model.frame(trms, grid, na.action = na.pass, xlev = xlev)
@@ -383,7 +384,50 @@ emm_basis.gls = function(object, trms, xlev, grid,
     V = .my.vcov(object, ...)
     nbasis = estimability::all.estble
     misc = list()
-    mode = match.arg(mode)
+    mode = match.arg(tolower(mode), c("kenward-roger", "auto", "df.error", "satterthwaite", "boot-satterthwaite"))
+    
+    # set flags
+    objN = object$dims$N
+    disable.pbkrtest = get_emm_option("disable.pbkrtest")
+    tooBig.k = (objN > get_emm_option("pbkrtest.limit"))
+    disable.lmerTest = get_emm_option("disable.lmerTest")
+    tooBig.s = (objN > get_emm_option("lmerTest.limit"))
+    
+    tooBigMsg = function(pkg, limit) {  
+        message("Note: D.f. calculations have been",
+            " disabled because the number of observations exceeds ", limit, ".\n",
+            "To enable adjustments, set emm_options(", pkg, ".limit = ", objN, ") or larger,\n",
+            "but be warned that this may result in large computation time and memory use.")
+    }
+    
+    # pick the lowest-hanging apples first
+    if (mode == "kenward-roger") {
+        if (disable.pbkrtest || tooBig.k || !requireNamespace("pbkrtest", quietly = TRUE))
+            mode = "satterthwaite"
+        if (!disable.pbkrtest && tooBig.k)
+            tooBigMsg("pbkrtest", get_emm_option("pbkrtest.limit"))
+    }
+    
+    if (mode == "kenward-roger") {
+        if (missing(vcov.)) {
+            dfargs = list(unadjV = V, 
+                adjV = pbkrtest::vcovAdj.gls(object, 0))
+            V = as.matrix(dfargs$adjV)
+            tst = try(pbkrtest::Lb_ddf)
+            if(class(tst) != "try-error")
+                dffun = function(k, dfargs) pbkrtest::Lb_ddf (k, dfargs$unadjV, dfargs$adjV)
+            else {
+                mode = "auto"
+                warning("Failure in loading pbkrtest routines",
+                    " - reverted to \"auto\"")
+            }
+        }
+        else {
+            message("Kenward-Roger method can't be used with user-supplied covariances")
+            mode = "auto"
+        }
+    }
+    
     if (!is.null(options$df)) # if we're gonna override the df anyway, keep it simple!
         mode = "df.error"
     if (mode == "auto")
